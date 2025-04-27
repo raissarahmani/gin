@@ -10,6 +10,7 @@ func InitRoutes() *gin.Engine {
 	initUserRouter(router)
 	initMovieRouter(router)
 	initScheduleRouter(router)
+	initCinemaRouter(router)
 
 	return router
 }
