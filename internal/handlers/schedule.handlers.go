@@ -19,7 +19,7 @@ func (s *ScheduleHandler) GetMovieSchedules(ctx *gin.Context) {
 	idParam := ctx.Param("movie_id")
 	movie_id, err := strconv.Atoi(idParam)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie"})
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "No schedule available for this movie"})
 		return
 	}
 
