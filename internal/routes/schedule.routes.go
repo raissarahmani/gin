@@ -9,7 +9,7 @@ import (
 func initScheduleRouter(router *gin.Engine) {
 	scheduleHandler := handlers.NewScheduleHandler()
 
-	scheduleRouter := router.Group("/order")
+	scheduleRouter := router.Group("/schedule")
 	{
 		scheduleRouter.GET("/:movie_id", scheduleHandler.GetMovieSchedules)
 	}

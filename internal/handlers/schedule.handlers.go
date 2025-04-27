@@ -25,7 +25,7 @@ func (s *ScheduleHandler) GetMovieSchedules(ctx *gin.Context) {
 
 	schedules, err := repositories.ScheduleRepo.GetSchedulesByMovieID(ctx.Request.Context(), movie_id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Error fetching schedules"})
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
 	}
 
