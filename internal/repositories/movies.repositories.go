@@ -14,9 +14,9 @@ func NewMovieRepository() {
 	MovieRepo = &MovieRepositories{}
 }
 
-func (m *MovieRepositories) ShowAllMovies(c context.Context) ([]models.Movies, error) {
+func (m *MovieRepositories) ShowAllMovies(c context.Context) ([]models.MovieList, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.release_date
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id`
@@ -26,10 +26,10 @@ func (m *MovieRepositories) ShowAllMovies(c context.Context) ([]models.Movies, e
 	}
 	defer rows.Close()
 
-	var movies []models.Movies
+	var movies []models.MovieList
 	for rows.Next() {
-		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+		var movie models.MovieList
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre, &movie.Release_date); err != nil {
 			return nil, err
 		}
 		movies = append(movies, movie)
@@ -40,7 +40,7 @@ func (m *MovieRepositories) ShowAllMovies(c context.Context) ([]models.Movies, e
 
 func (m *MovieRepositories) ShowMovieDetail(c context.Context, id int) (models.Movies, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name, m.duration, m.release_date, m.director, m.casts, m.synopsis
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.duration, m.release_date, m.director, m.casts, m.synopsis
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id
@@ -55,9 +55,9 @@ func (m *MovieRepositories) ShowMovieDetail(c context.Context, id int) (models.M
 	return detail, nil
 }
 
-func (m *MovieRepositories) FilterMoviesByTitle(c context.Context, title string) ([]models.Movies, error) {
+func (m *MovieRepositories) FilterMoviesByTitle(c context.Context, title string) ([]models.MovieList, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.release_date
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id
@@ -68,10 +68,10 @@ func (m *MovieRepositories) FilterMoviesByTitle(c context.Context, title string)
 	}
 	defer rows.Close()
 
-	var movies []models.Movies
+	var movies []models.MovieList
 	for rows.Next() {
-		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+		var movie models.MovieList
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre, &movie.Release_date); err != nil {
 			return nil, err
 		}
 		movies = append(movies, movie)
@@ -80,9 +80,9 @@ func (m *MovieRepositories) FilterMoviesByTitle(c context.Context, title string)
 	return movies, nil
 }
 
-func (m *MovieRepositories) FilterMoviesByGenre(c context.Context, genreName string) ([]models.Movies, error) {
+func (m *MovieRepositories) FilterMoviesByGenre(c context.Context, genreName string) ([]models.MovieList, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.release_date
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id
@@ -93,10 +93,10 @@ func (m *MovieRepositories) FilterMoviesByGenre(c context.Context, genreName str
 	}
 	defer rows.Close()
 
-	var movies []models.Movies
+	var movies []models.MovieList
 	for rows.Next() {
-		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+		var movie models.MovieList
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre, &movie.Release_date); err != nil {
 			return nil, err
 		}
 		movies = append(movies, movie)
@@ -105,23 +105,23 @@ func (m *MovieRepositories) FilterMoviesByGenre(c context.Context, genreName str
 	return movies, nil
 }
 
-func (m *MovieRepositories) FilterMoviesByTitleAndGenre(c context.Context, title, genre string) ([]models.Movies, error) {
+func (m *MovieRepositories) FilterMoviesByTitleAndGenre(c context.Context, title, genre string) ([]models.MovieList, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.release_date
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id
 		WHERE LOWER(m.title) = LOWER($1) AND LOWER(mg.genre_name) = LOWER($2)`
-	var result []models.Movies
+	var result []models.MovieList
 	rows, err := pkg.Database.Query(c, query, title, genre)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
-		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+		var movie models.MovieList
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre, &movie.Release_date); err != nil {
 			return nil, err
 		}
 		result = append(result, movie)
@@ -129,29 +129,28 @@ func (m *MovieRepositories) FilterMoviesByTitleAndGenre(c context.Context, title
 	return result, nil
 }
 
-func (m *MovieRepositories) ShowUpcomingMovies(c context.Context) ([]models.Movies, error) {
+func (m *MovieRepositories) ShowUpcomingMovies(c context.Context) ([]models.MovieList, error) {
 	query := `
-		SELECT m.id, mi.image, m.title, mg.genre_name, m.release_date
+		SELECT m.id, mi.poster, m.title, mg.genre_name, m.release_date
 		FROM movies m
 		JOIN movies_genre mg ON m.movies_genre_id = mg.id
 		JOIN movies_image mi ON m.movies_image_id = mi.id
-		WHERE EXTRACT(month FROM m.release_date) = 5 AND EXTRACT (year FROM m.release_date) = 2025`
+		WHERE m.release_date > now()`
 	rows, err := pkg.Database.Query(c, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var movies []models.Movies
+	var movies []models.MovieList
 	for rows.Next() {
-		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+		var movie models.MovieList
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre, &movie.Release_date); err != nil {
 			return nil, err
 		}
+
 		movies = append(movies, movie)
 	}
 
 	return movies, nil
 }
-
-

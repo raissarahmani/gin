@@ -32,20 +32,20 @@ func (m *MovieHandler) MovieDetail(ctx *gin.Context) {
 		return
 	}
 
-	movie, err := repositories.MovieRepo.ShowMovieDetail(ctx.Request.Context(), id)
+	detail, err := repositories.MovieRepo.ShowMovieDetail(ctx.Request.Context(), id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"msg": "Success", "movie": movie})
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: detail})
 }
 
 func (m *MovieHandler) FilterMovies(ctx *gin.Context) {
 	title := ctx.DefaultQuery("title", "")
 	genre := ctx.DefaultQuery("genre", "")
 
-	var movies []models.Movies
+	var movies []models.MovieList
 	var err error
 
 	if title != "" && genre != "" {
