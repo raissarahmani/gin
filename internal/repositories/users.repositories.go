@@ -18,16 +18,6 @@ func NewUserRepository() {
 	UserRepo = &UserRepositories{}
 }
 
-func (u *UserRepositories) AddNewUser(c context.Context, email, password string) (pgconn.CommandTag, error) {
-	query := "INSERT INTO users (email, password) VALUES ($1, $2)"
-	values := []any{email, password}
-	cmd, err := pkg.Database.Exec(c, query, values...)
-	if err != nil {
-		return pgconn.CommandTag{}, err
-	}
-	return cmd, nil
-}
-
 func (u *UserRepositories) IsUserExist(c context.Context, email string) (bool, error) {
     query := "SELECT 1 FROM users WHERE email=$1"
     row := pkg.Database.QueryRow(c, query, email)
@@ -42,6 +32,16 @@ func (u *UserRepositories) IsUserExist(c context.Context, email string) (bool, e
         return false, err
     }
     return true, nil
+}
+
+func (u *UserRepositories) AddNewUser(c context.Context, email, password string) (pgconn.CommandTag, error) {
+	query := "INSERT INTO users (email, password) VALUES ($1, $2)"
+	values := []any{email, password}
+	cmd, err := pkg.Database.Exec(c, query, values...)
+	if err != nil {
+		return pgconn.CommandTag{}, err
+	}
+	return cmd, nil
 }
 
 func (u *UserRepositories) LoginUser(ctx context.Context, email, password string) (int, error) {
