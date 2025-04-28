@@ -45,7 +45,7 @@ func (m *MovieHandler) FilterMovies(ctx *gin.Context) {
 	title := ctx.DefaultQuery("title", "")
 	genre := ctx.DefaultQuery("genre", "")
 
-	var movies []models.MovieList
+	var movies []models.Movies
 	var err error
 
 	if title != "" && genre != "" {
