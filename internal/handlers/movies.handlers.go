@@ -92,3 +92,25 @@ func (m *MovieHandler) UpcomingMovies(ctx *gin.Context) {
 // 		"msg": "success",
 // 	})
 // }
+
+func (m *MovieHandler) GetMovieSchedules(ctx *gin.Context) {
+	idParam := ctx.Param("movie_id")
+	movie_id, err := strconv.Atoi(idParam)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
+		return
+	}
+
+	schedules, err := repositories.MovieRepo.GetSchedulesByMovieID(ctx.Request.Context(), movie_id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
+		return
+	}
+
+	if len(schedules) == 0 {
+		ctx.JSON(http.StatusNotFound, models.Response{Msg: "No schedule available for this movie"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: schedules})
+}

@@ -13,3 +13,11 @@ type Movies struct {
 	Casts        []string  `db:"casts" json:"casts,omitempty"`
 	Synopsis     string    `db:"synopsis" json:"synopsis,omitempty"`
 }
+
+type Schedule struct {
+	Id       int       `db:"id" json:"id"`
+	Movie    string    `db:"movies_id" json:"title"`
+	Date     time.Time `db:"book_date" json:"date"`
+	Time     time.Time `db:"order_time_id" json:"time"`
+	Location string    `db:"order_location_id" json:"location"`
+}

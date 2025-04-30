@@ -15,5 +15,6 @@ func initMovieRouter(router *gin.Engine) {
 		movieRouter.GET("/:id", movieHandler.MovieDetail)
 		movieRouter.GET("/filter", movieHandler.FilterMovies)
 		movieRouter.GET("/upcoming", movieHandler.UpcomingMovies)
+		movieRouter.GET("/:id/schedule", movieHandler.GetMovieSchedules)
 	}
 }
