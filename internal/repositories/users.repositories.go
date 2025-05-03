@@ -4,40 +4,45 @@ import (
 	"context"
 	"errors"
 	"main/internal/models"
-	"main/pkg"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
-type UserRepositories struct{}
+type UserRepositories struct {
+	db  *pgxpool.Pool
+	rdb *redis.Client
+}
 
-var UserRepo *UserRepositories
-
-func NewUserRepository() {
-	UserRepo = &UserRepositories{}
+func NewUserRepository(pg *pgxpool.Pool, rdc *redis.Client) *UserRepositories {
+	return &UserRepositories{
+		db:  pg,
+		rdb: rdc,
+	}
 }
 
 func (u *UserRepositories) IsUserExist(c context.Context, email string) (bool, error) {
-    query := "SELECT 1 FROM users WHERE email=$1"
-    row := pkg.Database.QueryRow(c, query, email)
+	query := "SELECT 1 FROM users WHERE email=$1"
+	row := u.db.QueryRow(c, query, email)
 
-    var exists int
-    err := row.Scan(&exists)
+	var exists int
+	err := row.Scan(&exists)
 
-    if err != nil {
-        if errors.Is(err, pgx.ErrNoRows) {
-            return false, nil
-        }
-        return false, err
-    }
-    return true, nil
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (u *UserRepositories) AddNewUser(c context.Context, email, password string) (pgconn.CommandTag, error) {
-	query := "INSERT INTO users (email, password) VALUES ($1, $2)"
+	query := "INSERT INTO users (email, password, role) VALUES ($1, $2, 'user')"
 	values := []any{email, password}
-	cmd, err := pkg.Database.Exec(c, query, values...)
+	cmd, err := u.db.Exec(c, query, values...)
 	if err != nil {
 		return pgconn.CommandTag{}, err
 	}
@@ -48,7 +53,7 @@ func (u *UserRepositories) LoginUser(ctx context.Context, email, password string
 	query := "SELECT id FROM users WHERE email=$1 AND password=$2"
 	var userID int
 
-	err := pkg.Database.QueryRow(ctx, query, email, password).Scan(&userID)
+	err := u.db.QueryRow(ctx, query, email, password).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, errors.New("user not exist")
@@ -60,12 +65,12 @@ func (u *UserRepositories) LoginUser(ctx context.Context, email, password string
 }
 
 func (u *UserRepositories) FindUserByEmail(ctx context.Context, email string) (models.Users, error) {
-    query := "SELECT email, password FROM users WHERE email = $1"
+	query := "SELECT id, email, password, role FROM users WHERE email = $1"
 
-    var user models.Users
-    err := pkg.Database.QueryRow(ctx, query, email).Scan(&user.Email, &user.Password)
-    if err != nil {
-        return models.Users{}, err
-    }
-    return user, nil
+	var user models.Users
+	err := u.db.QueryRow(ctx, query, email).Scan(&user.Id, &user.Email, &user.Password, &user.Role)
+	if err != nil {
+		return models.Users{}, err
+	}
+	return user, nil
 }
