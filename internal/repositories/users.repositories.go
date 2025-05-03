@@ -8,18 +8,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 )
 
 type UserRepositories struct {
-	db  *pgxpool.Pool
-	rdb *redis.Client
+	db *pgxpool.Pool
 }
 
-func NewUserRepository(pg *pgxpool.Pool, rdc *redis.Client) *UserRepositories {
+func NewUserRepository(pg *pgxpool.Pool) *UserRepositories {
 	return &UserRepositories{
-		db:  pg,
-		rdb: rdc,
+		db: pg,
 	}
 }
 

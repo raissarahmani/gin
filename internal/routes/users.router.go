@@ -6,11 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 )
 
-func initUserRouter(router *gin.Engine, pg *pgxpool.Pool, rdc *redis.Client) {
-	userRepo := repositories.NewUserRepository(pg, rdc)
+func initUserRouter(router *gin.Engine, pg *pgxpool.Pool) {
+	userRepo := repositories.NewUserRepository(pg)
 	userHandler := handlers.NewUserHandler(userRepo)
 
 	userRouter := router.Group("/users")
