@@ -9,18 +9,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type MovieHandler struct{}
+type MovieHandler struct {
+	MovieRepo *repositories.MovieRepositories
+}
 
-func NewMovieHandler() *MovieHandler {
-	return &MovieHandler{}
+func NewMovieHandler(mr *repositories.MovieRepositories) *MovieHandler {
+	return &MovieHandler{
+		MovieRepo: mr,
+	}
 }
 
 func (m *MovieHandler) AllMovies(ctx *gin.Context) {
-	movies, err := repositories.MovieRepo.ShowAllMovies(ctx.Request.Context())
+	pageParam := ctx.DefaultQuery("page", "1") // from ?page=2
+	page, err := strconv.Atoi(pageParam)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	const pageSize = 5
+	offset := (page - 1) * pageSize
+
+	movies, err := m.MovieRepo.ShowAllMovies(ctx.Request.Context(), pageSize, offset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: movies})
 }
 
@@ -32,7 +46,7 @@ func (m *MovieHandler) MovieDetail(ctx *gin.Context) {
 		return
 	}
 
-	detail, err := repositories.MovieRepo.ShowMovieDetail(ctx.Request.Context(), id)
+	detail, err := m.MovieRepo.ShowMovieDetail(ctx.Request.Context(), id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
@@ -47,15 +61,18 @@ func (m *MovieHandler) FilterMovies(ctx *gin.Context) {
 
 	var movies []models.Movies
 	var err error
+	var limit = 5
+	var page = 1
+	var offset = (page - 1) * limit
 
 	if title != "" && genre != "" {
-		movies, err = repositories.MovieRepo.FilterMoviesByTitleAndGenre(ctx.Request.Context(), title, genre)
+		movies, err = m.MovieRepo.FilterMoviesByTitleAndGenre(ctx.Request.Context(), title, genre)
 	} else if title != "" {
-		movies, err = repositories.MovieRepo.FilterMoviesByTitle(ctx.Request.Context(), title)
+		movies, err = m.MovieRepo.FilterMoviesByTitle(ctx.Request.Context(), title)
 	} else if genre != "" {
-		movies, err = repositories.MovieRepo.FilterMoviesByGenre(ctx.Request.Context(), genre)
+		movies, err = m.MovieRepo.FilterMoviesByGenre(ctx.Request.Context(), genre)
 	} else {
-		movies, err = repositories.MovieRepo.ShowAllMovies(ctx.Request.Context())
+		movies, err = m.MovieRepo.ShowAllMovies(ctx.Request.Context(), limit, offset)
 	}
 
 	if err != nil {
@@ -67,7 +84,7 @@ func (m *MovieHandler) FilterMovies(ctx *gin.Context) {
 }
 
 func (m *MovieHandler) UpcomingMovies(ctx *gin.Context) {
-	movies, err := repositories.MovieRepo.ShowUpcomingMovies(ctx.Request.Context())
+	movies, err := m.MovieRepo.ShowUpcomingMovies(ctx.Request.Context())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
@@ -75,42 +92,56 @@ func (m *MovieHandler) UpcomingMovies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: movies})
 }
 
-// func (m *MovieHandler) AddMovie(ctx *gin.Context) {
-// 	query := "INSERT INTO movies (title, director, casts) VALUES ($1, $2, $3)"
-// 	values := []any{}
-// 	cmd, err := pkg.DB.Exec(ctx.Request.Context(), query, values...)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{
-// 			"msg": "Terjadi kesalahan server",
-// 		})
-// 		return
-// 	}
-// 	if cmd.RowsAffected() == 0 {
-// 		log.Println("Query Gagal, Tidak merubah data di DB")
-// 	}
-// 	ctx.JSON(http.StatusOK, gin.H{
-// 		"msg": "success",
-// 	})
-// }
+func (m *MovieHandler) AddMovie(ctx *gin.Context) {
+	var newMovie models.Movies
+	if err := ctx.ShouldBindJSON(&newMovie); err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid request body"})
+		return
+	}
+	err := m.MovieRepo.AddNewMovie(ctx.Request.Context(), newMovie)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to add movie"})
+		return
+	}
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie added successfully"})
+}
 
-func (m *MovieHandler) GetMovieSchedules(ctx *gin.Context) {
-	idParam := ctx.Param("movie_id")
-	movie_id, err := strconv.Atoi(idParam)
+func (m *MovieHandler) EditMovie(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.Atoi(idParam)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
 		return
 	}
 
-	schedules, err := repositories.MovieRepo.GetSchedulesByMovieID(ctx.Request.Context(), movie_id)
+	var editedMovie models.Movies
+	if err := ctx.ShouldBindJSON(&editedMovie); err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid request body"})
+		return
+	}
+
+	err = m.MovieRepo.EditMovie(ctx.Request.Context(), id, editedMovie)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Edit movie failed"})
 		return
 	}
 
-	if len(schedules) == 0 {
-		ctx.JSON(http.StatusNotFound, models.Response{Msg: "No schedule available for this movie"})
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie updated"})
+}
+
+func (m *MovieHandler) DeleteMovie(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: schedules})
+	err = m.MovieRepo.DeleteMovie(ctx.Request.Context(), id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Delete movie failed"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie deleted"})
 }
