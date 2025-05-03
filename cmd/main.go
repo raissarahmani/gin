@@ -1,7 +1,7 @@
 package main
 
 import (
-	"main/internal/repositories"
+	"log"
 	"main/internal/routes"
 	"main/pkg"
 
@@ -9,13 +9,17 @@ import (
 )
 
 func main() {
-	pkg.Connect()
+	db, err := pkg.Connect()
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
 
-	repositories.NewUserRepository()
-	repositories.NewMovieRepository()
-	repositories.NewScheduleRepository()
+	rdb := pkg.RedisConnect()
 
-	router := routes.InitRoutes()
+	router := routes.InitRoutes(db, rdb)
+
+	router.Static("/profile", "./public/img")
 
 	router.Run("127.0.0.1:8080")
 }
