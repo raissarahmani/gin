@@ -8,9 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var Database *pgxpool.Pool
-
-func Connect() error {
+func Connect() (*pgxpool.Pool, error) {
 	dbEnv := []any{}
 	dbEnv = append(dbEnv, os.Getenv("DBUSER"))
 	dbEnv = append(dbEnv, os.Getenv("DBPASS"))
@@ -19,10 +17,9 @@ func Connect() error {
 	dbEnv = append(dbEnv, os.Getenv("DBNAME"))
 	dbString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbEnv...)
 
-	var err error
-	Database, err = pgxpool.New(context.Background(), dbString)
+	Database, err := pgxpool.New(context.Background(), dbString)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return Database, nil
 }
