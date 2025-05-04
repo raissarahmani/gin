@@ -85,8 +85,8 @@ func (m *MovieRepositories) ShowMovieDetail(c context.Context, id int) (models.M
 		join movies_genre mg on mg.movies_id = m.id
 		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
-		group by m.id, m.title, mi.poster
-		WHERE m.id = $1`
+		WHERE m.id = $1
+		group by m.id, m.title, mi.poster`
 
 	var detail models.Movies
 	err := m.db.QueryRow(c, query, id).Scan(&detail.Id, &detail.Image, &detail.Title, &detail.Genre, &detail.Duration, &detail.Release_date, &detail.Director, &detail.Casts, &detail.Synopsis)
@@ -104,9 +104,9 @@ func (m *MovieRepositories) FilterMoviesByTitle(c context.Context, title string)
 		join movies_genre mg on mg.movies_id = m.id
 		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
+		WHERE LOWER(m.title) = LOWER($1)
 		group by m.id, m.title, mi.poster
-		order by m.id
-		WHERE LOWER(m.title) = LOWER($1)`
+		order by m.id`
 	rows, err := m.db.Query(c, query, title)
 	if err != nil {
 		return nil, err
@@ -132,9 +132,9 @@ func (m *MovieRepositories) FilterMoviesByGenre(c context.Context, genreName str
 		join movies_genre mg on mg.movies_id = m.id
 		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
+		WHERE LOWER(g.genre_name) = LOWER($1)
 		group by m.id, m.title, mi.poster
-		order by m.id
-		WHERE LOWER(g.genre_name) = LOWER($1)`
+		order by m.id`
 	rows, err := m.db.Query(c, query, genreName)
 	if err != nil {
 		return nil, err
@@ -160,9 +160,9 @@ func (m *MovieRepositories) FilterMoviesByTitleAndGenre(c context.Context, title
 		join movies_genre mg on mg.movies_id = m.id
 		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
+		WHERE LOWER(m.title) = LOWER($1) AND LOWER(g.genre_name) = LOWER($2)
 		group by m.id, m.title, mi.poster
-		order by m.id
-		WHERE LOWER(m.title) = LOWER($1) AND LOWER(g.genre_name) = LOWER($2)`
+		order by m.id`
 	var result []models.Movies
 	rows, err := m.db.Query(c, query, title, genre)
 	if err != nil {
@@ -187,9 +187,9 @@ func (m *MovieRepositories) ShowUpcomingMovies(c context.Context) ([]models.Movi
 		join movies_genre mg on mg.movies_id = m.id
 		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
+		WHERE m.release_date > now()
 		group by m.id, m.title, mi.poster
-		order by m.id
-		WHERE m.release_date > now()`
+		order by m.id`
 	rows, err := m.db.Query(c, query)
 	if err != nil {
 		return nil, err
