@@ -15,9 +15,9 @@ func InitRoutes(db *pgxpool.Pool, rdb *redis.Client) *gin.Engine {
 
 	router.Use(middleware.CORSMiddleware)
 
-	initUserRouter(router, db, rdb)
-	initMovieRouter(router, db, rdb)
-	initCinemaRouter(router, db, rdb)
+	initUserRouter(router, db)
+	initMovieRouter(router, db, rdb, middleware)
+	initShowingRouter(router, db)
 	initProfileRouter(router, middleware)
 
 	return router
