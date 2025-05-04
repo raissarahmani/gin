@@ -217,12 +217,21 @@ func (m *MovieRepositories) AddNewMovie(c context.Context, movie models.Movies) 
 }
 
 func (m *MovieRepositories) EditMovie(c context.Context, id int, movie models.Movies) error {
-	query := `
-		UPDATE movies
-		SET movies_image_id=$1, title=$2, duration=$3, release_date=$4, director=$5, casts=$6, synopsis=$7
-		WHERE id=$8`
-	_, err := m.db.Exec(c, query, movie.Image, movie.Title, movie.Duration, movie.Release_date, movie.Director, movie.Casts, movie.Synopsis, id)
-	return err
+	if movie.Image != "" {
+		query := `
+			UPDATE movies
+			SET movies_image_id=$1, title=$2, duration=$3, release_date=$4, director=$5, synopsis=$6
+			WHERE id=$7`
+		_, err := m.db.Exec(c, query, movie.Image, movie.Title, movie.Duration, movie.Release_date, movie.Director, movie.Synopsis, id)
+		return err
+	} else {
+		query := `
+			UPDATE movies
+			SET title=$1, duration=$2, release_date=$3, director=$4, synopsis=$5
+			WHERE id=$6`
+		_, err := m.db.Exec(c, query, movie.Title, movie.Duration, movie.Release_date, movie.Director, movie.Synopsis, id)
+		return err
+	}
 }
 
 func (m *MovieRepositories) DeleteMovie(c context.Context, id int) error {
