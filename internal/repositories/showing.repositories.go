@@ -50,7 +50,7 @@ func (s *ShowingRepositories) GetSchedulesByMovieID(ctx context.Context, movieID
 
 func (s *ShowingRepositories) GetSeatAvailability(ctx context.Context, movieID, cityID, cinemaID, scheduleID int) ([]models.Schedule, error) {
 	query := `
-	SELECT sc.book_date AS date, sc.book_time AS time, ct.city, c.cinema_name, m.title, s.seat_number AS seat, ss.is_available
+	SELECT s.seat_number AS seat
 	FROM showing_seat_schedule ss
 	JOIN seat s ON ss.seat_id = s.id
 	JOIN showing_schedule sh ON 
