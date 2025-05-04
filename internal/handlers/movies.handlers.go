@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"main/internal/models"
 	"main/internal/repositories"
 	"net/http"
+	"path"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -93,46 +96,132 @@ func (m *MovieHandler) UpcomingMovies(ctx *gin.Context) {
 }
 
 func (m *MovieHandler) AddMovie(ctx *gin.Context) {
-	var newMovie models.Movies
-	if err := ctx.ShouldBindJSON(&newMovie); err != nil {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid request body"})
+	title := ctx.PostForm("title")
+	durationStr := ctx.PostForm("duration")
+	release := ctx.PostForm("release_date")
+	director := ctx.PostForm("director")
+	casts := ctx.PostFormArray("casts")
+	synopsis := ctx.PostForm("synopsis")
+
+	// input validation
+	if title == "" || durationStr == "" || release == "" || director == "" || len(casts) == 0 || synopsis == "" {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "All required fields should be filled"})
 		return
 	}
-	err := m.MovieRepo.AddNewMovie(ctx.Request.Context(), newMovie)
+
+	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Duration should be number"})
+		return
+	}
+
+	releaseDate, err := time.Parse("2006-01-02", release)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid release date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	// Handle image upload
+	file, err := ctx.FormFile("poster")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Image file is required"})
+		return
+	}
+	filename := fmt.Sprintf("%d_poster_%s", time.Now().Unix(), file.Filename)
+	filepath := path.Join("public", "img", filename)
+	if err := ctx.SaveUploadedFile(file, filepath); err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to save poster"})
+		return
+	}
+
+	// Save to DB
+	movie := models.Movies{
+		Title:        title,
+		Duration:     duration,
+		Release_date: releaseDate,
+		Director:     director,
+		Casts:        casts,
+		Synopsis:     synopsis,
+		Image:        filename,
+	}
+
+	if err := m.MovieRepo.AddNewMovie(ctx.Request.Context(), movie); err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to add movie"})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie added successfully"})
 }
 
 func (m *MovieHandler) EditMovie(ctx *gin.Context) {
-	idParam := ctx.Param("id")
-	id, err := strconv.Atoi(idParam)
+	idStr := ctx.Param("id")
+	movieID, err := strconv.Atoi(idStr)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
 		return
 	}
 
-	var editedMovie models.Movies
-	if err := ctx.ShouldBindJSON(&editedMovie); err != nil {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid request body"})
+	title := ctx.PostForm("title")
+	durationStr := ctx.PostForm("duration")
+	release := ctx.PostForm("release_date")
+	director := ctx.PostForm("director")
+	synopsis := ctx.PostForm("synopsis")
+
+	// input validation
+	if title == "" || durationStr == "" || release == "" || director == "" || synopsis == "" {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "All required file should be filled"})
 		return
 	}
 
-	err = m.MovieRepo.EditMovie(ctx.Request.Context(), id, editedMovie)
+	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Edit movie failed"})
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Duration should be a number"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie updated"})
+	releaseDate, err := time.Parse("2006-01-02", release)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid release date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	// file upload
+	var filename string
+	file, err := ctx.FormFile("poster")
+	if err == nil {
+		filename = fmt.Sprintf("%d_%d_poster_%s", time.Now().Unix(), movieID, file.Filename)
+		filepath := path.Join("public", "img", filename)
+		if err := ctx.SaveUploadedFile(file, filepath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to save poster"})
+			return
+		}
+	}
+
+	movie := models.Movies{
+		Id:           movieID,
+		Title:        title,
+		Duration:     duration,
+		Release_date: releaseDate,
+		Director:     director,
+		Synopsis:     synopsis,
+	}
+
+	if filename != "" {
+		movie.Image = filename
+	}
+
+	if err := m.MovieRepo.EditMovie(ctx.Request.Context(), movieID, movie); err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to edit movie"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Movie updated successfully"})
 }
 
 func (m *MovieHandler) DeleteMovie(ctx *gin.Context) {
-	idParam := ctx.Param("id")
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
 		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
 		return
 	}
