@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"main/internal/models"
-	"main/pkg"
 
 	// "main/pkg"
 	"net/http"
@@ -13,19 +12,19 @@ import (
 
 func (m *Middleware) AccessGateAdmin(ctx *gin.Context) {
 	// 1. ambil payload/claims dari context gin
-	claims, exist := ctx.Get("Payload")
+	role, exist := ctx.Get("role")
 	if !exist {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, models.Response{Msg: "Please login first"})
 		return
 	}
 	// type assertion claims menjadi pkg.claims
-	userClaims, ok := claims.(*pkg.Claims)
+	roleStr, ok := role.(string)
 	if !ok {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, models.Response{Msg: "Login identity is malformed. Please re-login"})
 		return
 	}
 	// cek role yang ada di claims
-	if userClaims.Role != "admin" {
+	if roleStr != "admin" {
 		ctx.AbortWithStatusJSON(http.StatusForbidden, models.Response{Msg: "You can not access this page"})
 		return
 	}

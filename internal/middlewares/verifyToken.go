@@ -52,5 +52,7 @@ func (m *Middleware) VerifyToken(ctx *gin.Context) {
 
 	// masukkan claims/payload ke gin context
 	ctx.Set("Payload", claims)
+	ctx.Set("user_id", claims.UserID)
+	ctx.Set("role", claims.Role)
 	ctx.Next()
 }
