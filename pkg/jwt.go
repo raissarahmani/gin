@@ -10,18 +10,18 @@ import (
 )
 
 type Claims struct {
-	Id   int    `json:"id"`
-	Role string `json:"role"`
+	UserID int    `json:"user_id"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func NewClaims(id int, role string) *Claims {
+func NewClaims(user_id int, role string) *Claims {
 	return &Claims{
-		Id:   id,
-		Role: role,
+		UserID: user_id,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    os.Getenv("JWT_ISSUER"),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 5)), // jwt aktif selama 5 menit
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 60)), // jwt aktif selama 5 menit
 		},
 	}
 }
