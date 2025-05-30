@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"main/internal/models"
 	"main/internal/repositories"
 	"net/http"
@@ -19,37 +20,64 @@ func NewShowingHandler(sr *repositories.ShowingRepositories) *ShowingHandler {
 	}
 }
 
-func (s *ShowingHandler) GetMovieSchedules(ctx *gin.Context) {
-	movieID, err := strconv.Atoi(ctx.Query("movie_id"))
+func (s *ShowingHandler) GetFilteredShowings(ctx *gin.Context) {
+	movieIDStr := ctx.Query("movie_id")
+	cityIDStr := ctx.Query("city_id")
+	scheduleIDStr := ctx.Query("schedule_id")
+	cinemaIDStr := ctx.Query("cinema_id")
+	var result = make(map[string]interface{})
+
+	movieID, err := strconv.Atoi(movieIDStr)
 	if err != nil || movieID <= 0 {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid movie ID"})
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid or missing movie_id"})
 		return
 	}
 
-	cityID, err := strconv.Atoi(ctx.Query("city_id"))
-	if err != nil || cityID <= 0 {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid city ID"})
-		return
+	cityID, err := strconv.Atoi(cityIDStr)
+	scheduleID, err := strconv.Atoi(scheduleIDStr)
+	cinemaID, err := strconv.Atoi(cinemaIDStr)
+
+	// Get all schedule and all city for movie showings
+	if cityIDStr == "" && scheduleIDStr == "" {
+		schedules, err := s.ShowingRepo.GetSchedulesByMovie(ctx.Request.Context(), movieID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to fetch schedules"})
+			return
+		}
+
+		cities, err := s.ShowingRepo.GetCitiesByMovie(ctx.Request.Context(), movieID)
+		if err != nil {
+			log.Println(err.Error())
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to fetch cities"})
+			return
+		}
+
+		result["schedules"] = schedules
+		result["cities"] = cities
 	}
 
-	cinemaID, err := strconv.Atoi(ctx.Query("cinema_id"))
-	if err != nil || cinemaID <= 0 {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid cinema ID"})
-		return
+	// Get cinema showing movie in selected schedule and city
+	if cityIDStr != "" && scheduleIDStr != "" && cinemaIDStr == "" {
+		cinemas, err := s.ShowingRepo.GetCinemasByFilters(ctx.Request.Context(), movieID, cityID, scheduleID)
+		if err != nil {
+			log.Println(err.Error())
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to fetch cinemas"})
+			return
+		}
+		result["cinemas"] = cinemas
 	}
 
-	schedules, err := s.ShowingRepo.GetSchedulesByMovieID(ctx.Request.Context(), movieID, cityID, cinemaID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to fetch schedules"})
-		return
+	// Book schedule
+	if cityIDStr != "" && scheduleIDStr != "" && cinemaIDStr != "" {
+		booking, err := s.ShowingRepo.BookSchedule(ctx.Request.Context(), movieID, cityID, scheduleID, cinemaID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to book schedule"})
+			return
+		}
+		result["book"] = booking
 	}
 
-	if len(schedules) == 0 {
-		ctx.JSON(http.StatusNotFound, models.Response{Msg: "No schedule found"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: schedules})
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: result})
 }
 
 func (s *ShowingHandler) GetSeatAvailability(ctx *gin.Context) {
@@ -79,6 +107,7 @@ func (s *ShowingHandler) GetSeatAvailability(ctx *gin.Context) {
 
 	seats, err := s.ShowingRepo.GetSeatAvailability(ctx.Request.Context(), movieID, cityID, cinemaID, scheduleID)
 	if err != nil {
+		log.Println(err.Error())
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to fetch seat availability"})
 		return
 	}
@@ -89,36 +118,4 @@ func (s *ShowingHandler) GetSeatAvailability(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: seats})
-}
-
-func (s *ShowingHandler) ChooseSeat(ctx *gin.Context) {
-	var input models.Schedule
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid input"})
-		return
-	}
-
-	movieID := input.MovieID
-	cityID := input.CityID
-	cinemaID := input.CinemaID
-	scheduleID := input.ScheduleID
-	seatID := input.SeatID
-
-	isAvailable, err := s.ShowingRepo.IsSeatAvailable(ctx.Request.Context(), movieID, cityID, cinemaID, scheduleID, seatID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Error checking seat availability"})
-		return
-	}
-	if !isAvailable {
-		ctx.JSON(http.StatusConflict, models.Response{Msg: "Seat already booked"})
-		return
-	}
-
-	err = s.ShowingRepo.BookSeat(ctx.Request.Context(), seatID, movieID, cityID, cinemaID, scheduleID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to book seat"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, models.Response{Msg: "Seat booked"})
 }

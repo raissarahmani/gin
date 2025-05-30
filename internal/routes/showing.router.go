@@ -14,8 +14,7 @@ func initShowingRouter(router *gin.Engine, pg *pgxpool.Pool) {
 
 	showingRouter := router.Group("/showing")
 	{
-		showingRouter.GET("/schedule", showingHandler.GetMovieSchedules)
+		showingRouter.GET("/schedule", showingHandler.GetFilteredShowings)
 		showingRouter.GET("/seat", showingHandler.GetSeatAvailability)
-		showingRouter.POST("/seat", showingHandler.ChooseSeat)
 	}
 }
