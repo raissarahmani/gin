@@ -18,10 +18,11 @@ func initMovieRouter(router *gin.Engine, pg *pgxpool.Pool, rdc *redis.Client, mw
 	movieRouter.GET("", movieHandler.AllMovies)
 	movieRouter.GET("/:id", movieHandler.MovieDetail)
 	movieRouter.GET("/filter", movieHandler.FilterMovies)
+	movieRouter.GET("/now-playing", movieHandler.NowPlayingMovies)
 	movieRouter.GET("/upcoming", movieHandler.UpcomingMovies)
 
 	adminRouter := router.Group("/admin/movies")
-	adminRouter.Use(mw.AccessGateAdmin)
+	adminRouter.Use(mw.VerifyToken, mw.AccessGateAdmin)
 	adminRouter.POST("", movieHandler.AddMovie)
 	adminRouter.PATCH("/:id", movieHandler.EditMovie)
 	adminRouter.DELETE("/:id", movieHandler.DeleteMovie)

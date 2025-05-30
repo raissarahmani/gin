@@ -25,33 +25,19 @@ func NewMovieRepository(pg *pgxpool.Pool, rdc *redis.Client) *MovieRepositories 
 }
 
 func (m *MovieRepositories) ShowAllMovies(c context.Context, limit, offset int) ([]models.Movies, error) {
-	// cek redis terlebih dahulu, jika ada nilainya maka gunakan nilai dari redis
-	redisKey := fmt.Sprintf("movies:limit=%d:offset=%d", limit, offset)
-	cache, err := m.rdb.Get(c, redisKey).Result()
-	if err != nil {
-		if err == redis.Nil {
-			log.Printf("\nkey %s does not exist\n", redisKey)
-		} else {
-			log.Println("Redis is not working")
-		}
-	} else {
-		var movies []models.Movies
-		if err := json.Unmarshal([]byte(cache), &movies); err != nil {
-			return nil, err
-		}
-		if len(movies) > 0 {
-			return movies, nil
-		}
-	}
-
 	query := `
 		SELECT m.id, mi.poster, m.title, string_agg(g.genre_name, ', ') as genre
 		from movies m
-		join movies_genre mg on mg.movies_id = m.id
-		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
-		group by m.id, m.title, mi.poster
-		order by m.id limit $1 offset $2`
+		JOIN LATERAL (
+		  SELECT g.genre_name
+		  FROM movies_genre mg 
+		  JOIN genre g ON mg.genre_id = g.id
+		  WHERE mg.movies_id = m.id
+		  LIMIT 2) g ON true
+		GROUP BY m.id, m.title, mi.poster
+		ORDER BY m.id
+		LIMIT $1 OFFSET $2`
 
 	rows, err := m.db.Query(c, query, limit, offset)
 	if err != nil {
@@ -62,19 +48,12 @@ func (m *MovieRepositories) ShowAllMovies(c context.Context, limit, offset int) 
 	var movies []models.Movies
 	for rows.Next() {
 		var movie models.Movies
-		if err := rows.Scan(&movie.Id, &movie.Title, &movie.Image, &movie.Genre); err != nil {
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
 			return nil, err
 		}
 		movies = append(movies, movie)
 	}
 
-	res, err := json.Marshal(movies)
-	if err != nil {
-		log.Println("[DEBUG] marshal", err.Error())
-	}
-	if err := m.rdb.Set(c, redisKey, string(res), time.Minute*5).Err(); err != nil {
-		log.Println("[DEBUG] redis set", err.Error())
-	}
 	return movies, nil
 }
 
@@ -180,13 +159,95 @@ func (m *MovieRepositories) FilterMoviesByTitleAndGenre(c context.Context, title
 	return result, nil
 }
 
+func (m *MovieRepositories) ShowNowPlaying(c context.Context) ([]models.Movies, error) {
+	redisKey := "movies:nowplaying"
+	cache, err := m.rdb.Get(c, redisKey).Result()
+	if err != nil {
+		if err == redis.Nil {
+			log.Printf("\nkey %s does not exist\n", redisKey)
+		} else {
+			log.Println("Redis is not working")
+		}
+	} else {
+		var movies []models.Movies
+		if err := json.Unmarshal([]byte(cache), &movies); err != nil {
+			return nil, err
+		}
+		if len(movies) > 0 {
+			return movies, nil
+		}
+	}
+
+	query := `
+		SELECT m.id, mi.poster, m.title, string_agg(g.genre_name, ', ') as genre
+		from movies m
+		join movies_image mi on m.movies_image_id = mi.id
+		JOIN LATERAL (
+		  SELECT g.genre_name
+		  FROM movies_genre mg 
+		  JOIN genre g ON mg.genre_id = g.id
+		  WHERE mg.movies_id = m.id
+		  LIMIT 2) g ON true
+		WHERE m.id IN (6,7,8,9)
+		group by m.id, m.title, mi.poster
+		order by m.id`
+	rows, err := m.db.Query(c, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var movies []models.Movies
+	for rows.Next() {
+		var movie models.Movies
+		if err := rows.Scan(&movie.Id, &movie.Image, &movie.Title, &movie.Genre); err != nil {
+			return nil, err
+		}
+
+		movies = append(movies, movie)
+	}
+
+	res, err := json.Marshal(movies)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	if err := m.rdb.Set(c, redisKey, string(res), time.Minute*15).Err(); err != nil {
+		log.Println(err.Error())
+	}
+
+	return movies, nil
+}
+
 func (m *MovieRepositories) ShowUpcomingMovies(c context.Context) ([]models.Movies, error) {
+	// cek redis terlebih dahulu, jika ada nilainya maka gunakan nilai dari redis
+	redisKey := "movies:upcoming"
+	cache, err := m.rdb.Get(c, redisKey).Result()
+	if err != nil {
+		if err == redis.Nil {
+			log.Printf("\nkey %s does not exist\n", redisKey)
+		} else {
+			log.Println("Redis is not working")
+		}
+	} else {
+		var movies []models.Movies
+		if err := json.Unmarshal([]byte(cache), &movies); err != nil {
+			return nil, err
+		}
+		if len(movies) > 0 {
+			return movies, nil
+		}
+	}
+
 	query := `
 		SELECT m.id, mi.poster, m.title, string_agg(g.genre_name, ', ') as genre, m.release_date
 		from movies m
-		join movies_genre mg on mg.movies_id = m.id
-		join genre g on mg.genre_id = g.id
 		join movies_image mi on m.movies_image_id = mi.id
+		JOIN LATERAL (
+		  SELECT g.genre_name
+		  FROM movies_genre mg 
+		  JOIN genre g ON mg.genre_id = g.id
+		  WHERE mg.movies_id = m.id
+		  LIMIT 2) g ON true
 		WHERE m.release_date > now()
 		group by m.id, m.title, mi.poster
 		order by m.id`
@@ -205,14 +266,47 @@ func (m *MovieRepositories) ShowUpcomingMovies(c context.Context) ([]models.Movi
 
 		movies = append(movies, movie)
 	}
+
+	res, err := json.Marshal(movies)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	if err := m.rdb.Set(c, redisKey, string(res), time.Minute*15).Err(); err != nil {
+		log.Println(err.Error())
+	}
+
 	return movies, nil
 }
 
 func (m *MovieRepositories) AddNewMovie(c context.Context, movie models.Movies) error {
-	query := `
-		INSERT INTO movies (movies_image_id, title, duration, release_date, director, casts, synopsis)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := m.db.Exec(c, query, movie.Image, movie.Title, movie.Duration, movie.Release_date, movie.Director, movie.Casts, movie.Synopsis)
+	query := `INSERT INTO movies (title, duration, release_date, director, synopsis) VALUES `
+	values := []any{}
+	query += `(`
+	if movie.Title != "" {
+		query += fmt.Sprintf("$%d,", len(values)+1)
+		values = append(values, movie.Title)
+	}
+	if movie.Duration != 0 {
+		query += fmt.Sprintf("$%d,", len(values)+1)
+		values = append(values, movie.Duration)
+	}
+	if !movie.Release_date.IsZero() {
+		query += fmt.Sprintf("$%d,", len(values)+1)
+		values = append(values, movie.Release_date)
+	}
+	if movie.Director != "" {
+		query += fmt.Sprintf("$%d,", len(values)+1)
+		values = append(values, movie.Director)
+	}
+	if movie.Synopsis != "" {
+		query += fmt.Sprintf("$%d,", len(values)+1)
+		values = append(values, movie.Synopsis)
+	}
+	query += `)`
+
+	log.Println("[DEBUG] qry: ", query)
+
+	_, err := m.db.Exec(c, query, values...)
 	return err
 }
 

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"main/internal/models"
 	"main/internal/repositories"
 	"net/http"
@@ -22,6 +23,13 @@ func NewMovieHandler(mr *repositories.MovieRepositories) *MovieHandler {
 	}
 }
 
+// @summary 	Movies
+// @router 		/movies [get]
+// @accept 		json
+// @produce 	json
+// @success 	200 {object} models.Response
+// @failure 	500 {object} models.Response
+// @failure		400 {object} models.Response
 func (m *MovieHandler) AllMovies(ctx *gin.Context) {
 	pageParam := ctx.DefaultQuery("page", "1") // from ?page=2
 	page, err := strconv.Atoi(pageParam)
@@ -29,11 +37,12 @@ func (m *MovieHandler) AllMovies(ctx *gin.Context) {
 		page = 1
 	}
 
-	const pageSize = 5
+	const pageSize = 12
 	offset := (page - 1) * pageSize
 
 	movies, err := m.MovieRepo.ShowAllMovies(ctx.Request.Context(), pageSize, offset)
 	if err != nil {
+		log.Println(err.Error())
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
 	}
@@ -51,6 +60,7 @@ func (m *MovieHandler) MovieDetail(ctx *gin.Context) {
 
 	detail, err := m.MovieRepo.ShowMovieDetail(ctx.Request.Context(), id)
 	if err != nil {
+		log.Println(err.Error())
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
 		return
 	}
@@ -86,6 +96,16 @@ func (m *MovieHandler) FilterMovies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: movies})
 }
 
+func (m *MovieHandler) NowPlayingMovies(ctx *gin.Context) {
+	movies, err := m.MovieRepo.ShowNowPlaying(ctx.Request.Context())
+	if err != nil {
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Internal server error"})
+		return
+	}
+	ctx.JSON(http.StatusOK, models.Response{Msg: "Success", Data: movies})
+}
+
 func (m *MovieHandler) UpcomingMovies(ctx *gin.Context) {
 	movies, err := m.MovieRepo.ShowUpcomingMovies(ctx.Request.Context())
 	if err != nil {
@@ -100,11 +120,12 @@ func (m *MovieHandler) AddMovie(ctx *gin.Context) {
 	durationStr := ctx.PostForm("duration")
 	release := ctx.PostForm("release_date")
 	director := ctx.PostForm("director")
-	casts := ctx.PostFormArray("casts")
 	synopsis := ctx.PostForm("synopsis")
 
 	// input validation
-	if title == "" || durationStr == "" || release == "" || director == "" || len(casts) == 0 || synopsis == "" {
+	if title == "" || durationStr == "" || release == "" || director == "" || synopsis == "" {
+		log.Printf("Missing fields: title=%q, duration=%q, release_date=%q, director=%q, synopsis=%q\n",
+			title, durationStr, release, director, synopsis)
 		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "All required fields should be filled"})
 		return
 	}
@@ -123,14 +144,18 @@ func (m *MovieHandler) AddMovie(ctx *gin.Context) {
 
 	// Handle image upload
 	file, err := ctx.FormFile("poster")
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Image file is required"})
-		return
-	}
-	filename := fmt.Sprintf("%d_poster_%s", time.Now().Unix(), file.Filename)
-	filepath := path.Join("public", "img", filename)
-	if err := ctx.SaveUploadedFile(file, filepath); err != nil {
-		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to save poster"})
+	var filename string
+
+	if err == nil {
+		filename = fmt.Sprintf("%d_poster_%s", time.Now().Unix(), file.Filename)
+		filepath := path.Join("public", "img", filename)
+
+		if err := ctx.SaveUploadedFile(file, filepath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to save poster"})
+			return
+		}
+	} else if err != http.ErrMissingFile {
+		ctx.JSON(http.StatusBadRequest, models.Response{Msg: "Invalid file upload"})
 		return
 	}
 
@@ -140,12 +165,12 @@ func (m *MovieHandler) AddMovie(ctx *gin.Context) {
 		Duration:     duration,
 		Release_date: releaseDate,
 		Director:     director,
-		Casts:        casts,
 		Synopsis:     synopsis,
 		Image:        filename,
 	}
 
 	if err := m.MovieRepo.AddNewMovie(ctx.Request.Context(), movie); err != nil {
+		log.Println("Error inserting movie:", err)
 		ctx.JSON(http.StatusInternalServerError, models.Response{Msg: "Failed to add movie"})
 		return
 	}
