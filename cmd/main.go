@@ -8,6 +8,11 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// @title 		Tickitz Project
+// @version 	1.0
+// @description A movie ticket booking application designed for better user experience
+// @host 		localhost:8080
+// @BasePath 	/
 func main() {
 	db, err := pkg.Connect()
 	if err != nil {
@@ -19,7 +24,7 @@ func main() {
 
 	router := routes.InitRoutes(db, rdb)
 
-	router.Static("/profile", "./public/img")
+	router.Static("/public", "./public/img")
 
-	router.Run("127.0.0.1:8080")
+	router.Run(":8080")
 }
