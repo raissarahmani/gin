@@ -141,10 +141,8 @@ func (p *ProfileHandler) ChangePassword(ctx *gin.Context) {
 }
 
 func fileHandling(ctx *gin.Context, file *multipart.FileHeader, userID int) (filename, filepath string, err error) {
-	claims, _ := ctx.Get("Payload")
-	userClaims := claims.(*pkg.Claims)
 	ext := fp.Ext(file.Filename)
-	filename = fmt.Sprintf("%d_%d_profile_image%s", time.Now().UnixNano(), userClaims.Id, ext)
+	filename = fmt.Sprintf("%d_%d_profile_image%s", time.Now().UnixNano(), userID, ext)
 	filepath = fp.Join("public", "img", filename)
 	if err = ctx.SaveUploadedFile(file, filepath); err != nil {
 		return "", "", err
