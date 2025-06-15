@@ -18,7 +18,9 @@ func InitRoutes(db *pgxpool.Pool, rdb *redis.Client) *gin.Engine {
 	initUserRouter(router, db)
 	initMovieRouter(router, db, rdb, middleware)
 	initShowingRouter(router, db)
-	initProfileRouter(router, middleware)
+	initOrderRouter(router, db, middleware)
+	initProfileRouter(router, db, middleware)
+	initSwaggerRouter(router)
 
 	return router
 }
