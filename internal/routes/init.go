@@ -20,7 +20,7 @@ func InitRoutes(db *pgxpool.Pool, rdb *redis.Client) *gin.Engine {
 	initShowingRouter(router, db)
 	initOrderRouter(router, db, middleware)
 	initProfileRouter(router, db, middleware)
-	initSwaggerRouter(router)
+	// initSwaggerRouter(router)
 
 	return router
 }
