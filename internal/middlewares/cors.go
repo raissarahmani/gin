@@ -13,6 +13,10 @@ func (m *Middleware) CORSMiddleware(ctx *gin.Context) {
 	whitelistOrigin := []string{"http://localhost:5173", "https://tickitz-react.vercel.app"}
 	origin := ctx.GetHeader("Origin")
 	log.Println("[DEBUG] Origin: ", origin)
+	for key, values := range ctx.Request.Header {
+		log.Printf("[DEBUG] Header: %s=%s\n", key, values)
+	}
+
 	allowedOrigin := ""
 	if slices.Contains(whitelistOrigin, origin) {
 		allowedOrigin = origin
