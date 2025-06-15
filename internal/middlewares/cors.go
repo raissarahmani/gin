@@ -9,7 +9,7 @@ import (
 
 func (m *Middleware) CORSMiddleware(ctx *gin.Context) {
 	// setup whitelist origin
-	whitelistOrigin := []string{"http://localhost:5173"}
+	whitelistOrigin := []string{"http://localhost:5173", "https://tickitz-react.vercel.app"}
 	origin := ctx.GetHeader("Origin")
 	// log.Println("[DEBUG] Origin: ", origin)
 	allowedOrigin := ""
