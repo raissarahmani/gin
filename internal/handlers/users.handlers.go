@@ -71,6 +71,14 @@ func (u *UserHandler) RegistUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, models.Response{Msg: "User registered successfully. Please login"})
 }
 
+// @summary 	Login User
+// @router 		/users [post]
+// @accept 		json
+// @param 		body body models.Users true "login information"
+// @produce 	json
+// @success 	200 {object} models.Response
+// @failure 	500 {object} models.Response
+// @failure		401 {object} models.Response
 func (u *UserHandler) Login(ctx *gin.Context) {
 	var input models.Users
 	if err := ctx.ShouldBind(&input); err != nil {
